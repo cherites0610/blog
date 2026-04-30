@@ -1,0 +1,183 @@
+---
+import { getCollection } from 'astro:content';
+import BaseHead from '../components/BaseHead.astro';
+import Sidebar from '../components/Sidebar.astro';
+import Footer from '../components/Footer.astro';
+import FormattedDate from '../components/FormattedDate.astro';
+import { SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+
+const posts = (await getCollection('blog', ({ data }) => !data.draft)).sort(
+    (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+);
+
+const allTags = [...new Set(posts.flatMap((p) => p.data.tags))];
+---
+
+<!doctype html>
+<html lang="zh-TW">
+    <head>
+        <BaseHead title={SITE_TITLE} description={SITE_DESCRIPTION} />
+        <style>
+            main {
+                max-width: 680px;
+                margin: 0 auto;
+                padding: 4rem 1.5rem 2rem;
+            }
+            h1 {
+                font-size: 1.1rem;
+                color: rgb(var(--gray));
+                font-weight: 400;
+                margin: 0 0 2rem 0;
+                letter-spacing: 0.05em;
+                text-transform: uppercase;
+            }
+            ul {
+                list-style: none;
+                padding: 0;
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+            }
+            li {
+                border-bottom: 1px solid rgba(var(--gray-light), 60%);
+            }
+            li:first-child {
+                border-top: 1px solid rgba(var(--gray-light), 60%);
+            }
+            li a {
+                display: grid;
+                grid-template-columns: 1fr auto;
+                align-items: baseline;
+                gap: 1rem;
+                padding: 1rem 0;
+                text-decoration: none;
+                color: inherit;
+            }
+            li a:hover .title {
+                color: var(--accent);
+            }
+            .title {
+                font-size: 1rem;
+                font-weight: 500;
+                color: rgb(var(--black));
+                transition: color 0.15s;
+            }
+            .right {
+                display: flex;
+                flex-direction: column;
+                align-items: flex-end;
+                gap: 0.3rem;
+                flex-shrink: 0;
+            }
+            .date {
+                font-size: 0.8rem;
+                color: rgb(var(--gray));
+                white-space: nowrap;
+            }
+            .tags {
+                display: flex;
+                gap: 0.3rem;
+                flex-wrap: wrap;
+                justify-content: flex-end;
+            }
+            .tag {
+                font-size: 0.7rem;
+                color: var(--accent);
+                cursor: pointer;
+            }
+            .tag:hover {
+                text-decoration: underline;
+            }
+            .tag-filters {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 0.5rem;
+                margin-bottom: 2rem;
+            }
+            .tag-btn {
+                background: none;
+                border: 1px solid rgba(var(--gray), 40%);
+                color: rgb(var(--gray));
+                border-radius: 999px;
+                padding: 0.25rem 0.75rem;
+                font-size: 0.8rem;
+                cursor: pointer;
+                transition: all 0.15s;
+            }
+            .tag-btn:hover {
+                border-color: var(--accent);
+                color: var(--accent);
+            }
+            .tag-btn.active {
+                background: var(--accent);
+                border-color: var(--accent);
+                color: var(--bg);
+            }
+            li.hidden {
+                display: none;
+            }
+        </style>
+    </head>
+    <body>
+        <Sidebar />
+        <main>
+            <h1>所有文章</h1>
+            <div class="tag-filters">
+                <button class="tag-btn active" data-tag="all">全部</button>
+                {allTags.map((tag) => (
+                    <button class="tag-btn" data-tag={tag}>#{tag}</button>
+                ))}
+            </div>
+            <ul>
+                {posts.map((post) => (
+                    <li data-tags={post.data.tags.join(',')}>
+                        <a href={`/blog/${post.id}/`}>
+                            <span class="title">{post.data.title}</span>
+                            <div class="right">
+                                <span class="date"><FormattedDate date={post.data.pubDate} /></span>
+                                {post.data.tags.length > 0 && (
+                                    <div class="tags">
+                                        {post.data.tags.map((tag) => (
+                                            <span class="tag" data-filter-tag={tag}>#{tag}</span>
+                                        ))}
+                                    </div>
+                                )}
+                            </div>
+                        </a>
+                    </li>
+                ))}
+            </ul>
+        </main>
+        <Footer />
+    </body>
+    <script>
+        const buttons = document.querySelectorAll<HTMLButtonElement>('.tag-btn');
+        const items = document.querySelectorAll<HTMLLIElement>('li[data-tags]');
+
+        function applyFilter(tag: string) {
+            buttons.forEach((b) => b.classList.remove('active'));
+            const target = [...buttons].find((b) => b.dataset.tag === tag);
+            if (target) target.classList.add('active');
+
+            items.forEach((item) => {
+                if (tag === 'all') {
+                    item.classList.remove('hidden');
+                } else {
+                    const tags = item.dataset.tags?.split(',') ?? [];
+                    item.classList.toggle('hidden', !tags.includes(tag));
+                }
+            });
+        }
+
+        buttons.forEach((btn) => {
+            btn.addEventListener('click', () => applyFilter(btn.dataset.tag!));
+        });
+
+        document.querySelectorAll<HTMLSpanElement>('[data-filter-tag]').forEach((span) => {
+            span.addEventListener('click', (e) => {
+                e.preventDefault();
+                applyFilter(span.dataset.filterTag!);
+            });
+        });
+    </script>
+</html>
