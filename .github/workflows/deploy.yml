@@ -17,5 +17,5 @@ jobs:
           script: |
             cd /home/cherites/Project/blog
             git pull origin main
-            npm install
-            npm run build
+            pnpm install
+            pnpm run build
