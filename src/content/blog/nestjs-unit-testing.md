@@ -3,7 +3,7 @@ title: NestJS 的單元測試初體驗
 description: 從零開始學習 NestJS 單元測試，涵蓋測試環境建立、Mock 技巧，以及實戰 CRUD Service 測試。
 pubDate: 2026-05-04
 tags: ["NestJS", "TypeScript", "Unit Testing", "Jest"]
-draft: true
+draft: false
 ---
 
 ## 前言
