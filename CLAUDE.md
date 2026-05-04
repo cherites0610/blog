@@ -53,6 +53,16 @@ blog/
                  Caddy serve dist/（自動 SSL）
 ```
 
+## 文章撰寫工作流程
+
+新增文章時，**必須**遵守以下流程，不可跳過任何步驟：
+
+1. 使用者給題目 → 提出文章結構（大綱）讓使用者審核
+2. 審核通過 → 在 `src/content/blog/` 建立 `.md` 檔，填好 frontmatter，內文留空
+3. 使用者撰寫內文完成後告知 → 整理版面與內容
+4. 呈現最終內容讓使用者審核，等待明確核准
+5. 審核通過 → commit（**禁止**加 `Co-Authored-By`）→ push
+
 ## 開發進度
 
 | # | 階段 | 狀態 |
@@ -60,7 +70,6 @@ blog/
 | 1 | 建立 Astro 專案（blog template） | ✅ 完成 |
 | 2 | 客製化樣式（簡潔版型、RWD） | ✅ 完成 |
 | 3 | 寫第一篇文章（Event Loop），驗證 Markdown + code highlight | ✅ 完成 |
-| 4 | EC2 + Caddy + 域名 + SSL | ⬜ 待開始 |
-| 5 | GitHub Actions 部署腳本 | ⬜ 待開始 |
-| 6 | 補齊剩餘文章 | ⬜ 待開始 |
+| 4 | EC2 + Caddy + 域名 + SSL | ✅ 完成 |
+| 5 | GitHub Actions 部署腳本 | ✅ 完成 |
 | 7 | （第二階段）RSS、SEO og tags、Dev.to 同步 | 🔄 RSS + SEO 完成，Dev.to 待處理 |
