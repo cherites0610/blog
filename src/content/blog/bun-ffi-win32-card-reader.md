@@ -2,45 +2,45 @@
 title: "Bun FFI 實戰：直接調用 Win32 API 驅動刷卡機通訊"
 description: 介紹如何使用 Bun FFI 直接呼叫 Win32 API，實現刷卡機通訊。
 pubDate: 2026-05-05
-tags: ["Bun", "FFI", "Win32", "Windows", "TypeScript"]
+tags: ["實戰紀錄"]
 ---
 
-# 緣由 : 原生模組的「單執行檔」惡夢
+#### 緣由 : 原生模組的「單執行檔」惡夢
 
 在開發桌面整合工具時，往往希望交付或者產出給客戶的是「一個檔案」，而不是「一個資料夾+萬惡的依賴文件」
 
 - 編譯屏障:像 node-serialport 這類模組依賴 C++ 編譯，它們是動態連結庫。當你嘗試用 bun build --compile 或 pkg 封裝時，這些 .node 檔案通常無法被真正「靜態嵌入」到執行檔內部，導致執行時找不到路徑，或是必須額外附帶 .dll / .node 檔案。
 - 依賴地獄：Node.js 的 native binding 往往需要對應的運行環境（ABI 版本），這增加了部署的風險。
 
-## 選擇:兩條路的抉擇
+#### 選擇:兩條路的抉擇
 
-### A:使用NodeJS+pkg(老牌方案)
+##### A:使用NodeJS+pkg(老牌方案)
 
-#### 優點：
+###### 優點：
 - 生態系成熟
 - serialport 套件極其穩定。
 -
-#### 缺點：
+###### 缺點：
 - pkg已經進入維護模式
 - 對新版的NodeJS支援度不佳
 - 最終產出的檔案依然很大
 - 處理C++的配置繁瑣
 
-### B:使用 Bun:ffi + kernel32.dll (現代方案)
-#### 優點：
+##### B:使用 Bun:ffi + kernel32.dll (現代方案)
+###### 優點：
 - 真正的零依賴：kernel32.dll 是 Windows 內建的，不需要隨程式發布。
 - 直接掌控：直接操作 OS 底層控制區塊（DCB），沒有中間層的效能損耗。
 
-#### 缺點：
+###### 缺點：
 - 平台鎖定：kernel32.dll 是 Windows 專屬，無法跨平台移植。
 - 學習門檻高：需要理解 C ABI、記憶體佈局與指標操作，型別定義出錯換來的是 Segment Fault，而非友善的錯誤訊息。
 - 無型別保護：DLL 本身不提供型別資訊，所有函式簽章都要手動對照 MSDN 文件撰寫，維護成本高。
 
 對「刷卡機Gateway」而言，開箱即用無需繁瑣配置及解決依賴地獄是現場非常重要的事情，故我選擇了B方案
 
-## 實戰
+#### 實戰
 
-### FFI 函數定義
+##### FFI 函數定義
 透過 Bun 的 bun:ffi，我們可以直接載入 Windows 的系統核心函式庫 kernel32.dll。這不僅僅是呼叫一個函式，更是一場「跨語言的數據交換」。
 
 1. 建立橋樑：dlopen
@@ -78,7 +78,7 @@ ptr：代表一個記憶體位址。
 3. Handle 的本質
 注意這裡的 returns: FFIType.u64_fast。CreateFileA 會回傳一個 HANDLE。在底層世界裡，這並不是一個「檔案物件」，而是一個指向系統資源的指標。我們在後續的讀取與寫入動作中，都必須帶著這把「鑰匙（Handle）」，作業系統才知道你要操作的是哪一個硬體裝置。
 
-### 硬體協議握手
+##### 硬體協議握手
 拿到硬體句柄（Handle）後，就像是接通了電話，但如果兩邊說的話速（Baud Rate）不對、語法（Data Bits）不同，最終只會收到一堆亂碼。
 
 在 Windows 底層，這一切的設定都儲存在一個名為 DCB (Device Control Block) 的結構體中。而在 TypeScript 裡，我們必須透過 Uint8Array 與 DataView 來模擬這個 C 語言結構體的記憶體佈局。
@@ -115,7 +115,7 @@ k32.SetCommState(this.#handle, dcb); // 套用設定
 
 我們將 ReadIntervalTimeout 設為 0xffffffff (MAXDWORD)。這在 Windows API 中是一個特殊技巧，代表：「如果緩衝區有資料就立刻拿走；如果沒資料，不要等，直接回報讀取了 0 位元組。」
 
-### 非同步輪詢機制
+##### 非同步輪詢機制
 1. 利用 setInterval 模擬異步監控
 為了不阻塞主線程，我們使用 setInterval 定期檢查硬體緩衝區。搭配上一章提到的「非阻塞超時設定」，這讓我們的讀取循環變得非常流暢：
 
@@ -147,7 +147,7 @@ this.#pollTimer = setInterval(() => {
 // 註冊行程退出事件，確保硬體資源被釋放
 process.on("exit", () => this.#close());
 ```
-### 資料流處理
+##### 資料流處理
 從 k32.ReadFile 拿到的資料就像斷斷續續的水流，我們稱之為 Chunk。在通訊協議中，這些 Chunk 可能會發生兩種情況：
 
 碎片化（Fragmentation）：一個完整的封包被拆成多次才傳完。
@@ -201,7 +201,7 @@ if (this.#readBuffer.length >= SerialPaymentProcessor.TOTAL_LENGTH) {
 }
 ```
 
-### 資料幀驗證與解析
+##### 資料幀驗證與解析
 拿到一組完整長度的資料幀（Frame）後，我們進入最後一關：驗證它的合法性，並將二進位數據轉化為應用程式看得懂的格式。這一步驟包含了 邊界驗證、校驗碼計算 與 雙向應答。
 
 1. 雙重邊界驗證
@@ -243,7 +243,7 @@ const ackBuf = new Uint8Array([0x06, 0x06]);
 k32.WriteFile(this.#handle!, ackBuf, ackBuf.length, written, null);
 ```
 
-## 結語
+#### 結語
 
 從一開始「交付一個檔案」的簡單需求，我們走過了 ABI 型別映射、DCB 結構體手術、流式解析器的碎片黏包，最終實現了一套完全無外部依賴、可直接 `bun build --compile` 的刷卡機通訊系統。
 
